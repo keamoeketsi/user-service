@@ -1,12 +1,12 @@
 package com.fnb.user_service.service;
 
-import com.fnb.user_service.dto.AuthResponse;
-import com.fnb.user_service.dto.LoginRequest;
-import com.fnb.user_service.dto.RegisterRequest;
+import com.fnb.user_service.model.User;
+
+import java.util.Optional;
 
 public interface UserService {
 
-    AuthResponse register(RegisterRequest request);
+    User registerUser(User user);
 
-    AuthResponse login(LoginRequest request);
+    Optional<User> loginUser(String email, String password);
 }

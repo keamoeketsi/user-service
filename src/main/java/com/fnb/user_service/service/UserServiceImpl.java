@@ -1,60 +1,51 @@
 package com.fnb.user_service.service;
 
-import com.fnb.user_service.dto.AuthResponse;
-import com.fnb.user_service.dto.LoginRequest;
-import com.fnb.user_service.dto.RegisterRequest;
 import com.fnb.user_service.model.User;
 import com.fnb.user_service.repository.UserRepository;
-import com.fnb.user_service.security.JwtUtil;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
-@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
 
-    @Override
-    public AuthResponse register(RegisterRequest request) {
-
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username already taken");
-        }
-
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already registered");
-        }
-
-        User user = User.builder()
-                .username(request.getUsername())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .build();
-
-        userRepository.save(user);
-
-        String token = jwtUtil.generateToken(user.getUsername());
-
-        return new AuthResponse(token, user.getUsername(), "Registration successful");
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
+    // 🔹 Register user with hashed password
     @Override
-    public AuthResponse login(LoginRequest request) {
-
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new BadCredentialsException("Invalid password");
+    public User registerUser(User user) {
+        if (userRepository.existsByEmail(user.getEmail())) {
+            throw new RuntimeException("Email already exists");
         }
 
-        String token = jwtUtil.generateToken(user.getUsername());
+        if (userRepository.existsByUsername(user.getUsername())) {
+            throw new RuntimeException("Username already exists");
+        }
 
-        return new AuthResponse(token, user.getUsername(), "Login successful");
+        // Hash the password before saving
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        return userRepository.save(user);
+    }
+
+    // 🔹 Login user by username & password
+    @Override
+    public Optional<User> loginUser(String username, String rawPassword) {
+        Optional<User> optionalUser = userRepository.findByUsername(username); // ✅ search by username
+
+        if (optionalUser.isPresent()) {
+            User user = optionalUser.get();
+            // ✅ match raw password against hashed password
+            if (passwordEncoder.matches(rawPassword, user.getPassword())) {
+                return Optional.of(user);
+            }
+        }
+        return Optional.empty(); // invalid credentials
     }
 }
